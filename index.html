@@ -1,14 +1,27 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-brand="mongodb" data-theme="brand">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="MongoDB explain() plan visualizer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ExplainLens</title>
     <meta name="description" content="MongoDB explain() plan visualizer" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23445e91'/></svg>" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%2300684a'/></svg>" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
     <script>
-      document.documentElement.dataset.theme =
-        localStorage.getItem('theme') ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      (function () {
+        var themes = ['brand','expressive','vibrant','ocean','sunset','forest']
+        var theme = localStorage.getItem('el:colorTheme')
+        if (themes.indexOf(theme) < 0) theme = 'brand'
+        var mode = localStorage.getItem('el:themeMode')
+        if (mode !== 'light' && mode !== 'dark') {
+          mode = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        }
+        document.documentElement.dataset.brand = 'mongodb'
+        document.documentElement.dataset.theme = theme
+        document.documentElement.dataset.themeMode = mode
+      })()
     </script>
   </head>
   <body>
