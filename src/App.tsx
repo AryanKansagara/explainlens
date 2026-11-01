@@ -8,7 +8,7 @@ function ProductLanding() {
       name="ExplainLens"
       icon="account_tree"
       tagline="MongoDB explain() plan visualizer"
-      headline="See why MongoDB picked that plan"
+      headline="See why MongoDB *picked that plan*"
       support="Paste explain() JSON or mongosh output. Get a heat-mapped plan tree, findings, and index advice — including ESR mistakes and COLLSCAN traps."
       audience="For backend engineers tuning MongoDB queries before they ship."
       features={[
