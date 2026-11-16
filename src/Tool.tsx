@@ -84,13 +84,11 @@ export default function Tool() {
           <h2>Explain output</h2>
           <div className="row">
             <label className="btn ghost sm">
-              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>upload_file</span>
               Upload
               <input type="file" accept=".json,.txt,application/json,text/plain" hidden onChange={(e) => { loadFile(e.target.files?.[0]); e.target.value = '' }} />
             </label>
             {paste && <button type="button" className="btn ghost sm" onClick={() => setPaste('')}>Clear</button>}
             <button type="button" className="btn tonal sm" onClick={share} disabled={!paste.trim()}>
-              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>share</span>
               Share
             </button>
           </div>
@@ -169,14 +167,14 @@ function Stats({ a }: { a: Analysis }) {
           {a.aggregation && <span className="badge info">aggregation</span>}
           {a.sharded && <span className="badge info">sharded</span>}
           {a.version && <span className="badge info">v{a.version}</span>}
-          {a.ratio !== undefined && <span className={`badge ${a.health}`}>exam/ret {fmt(a.ratio)}×</span>}
+          {a.ratio !== undefined && <span className={`badge ${a.health}`}>{fmt(Math.round(a.ratio))} docs examined per doc returned</span>}
         </h2>
       </div>
       <div className="stats">
         {items.map((it) => (
           <div key={it.label} className="stat">
             <div className="label">{it.label}</div>
-            <div className="value" style={{ fontSize: typeof it.value === 'string' && it.value.length > 14 ? 18 : undefined }}>{it.value}</div>
+            <div className="value" style={{ fontSize: typeof it.value === 'string' && it.value.length > 12 ? 18 : undefined }}>{it.value}</div>
           </div>
         ))}
       </div>

@@ -128,6 +128,14 @@ export function parseLenient(src: string): Parsed {
     for (;;) {
       ws()
       if (src[i] === '}') { i++; return out }
+      if (src.startsWith('...', i)) {
+        // Hand-trimmed output (docs, forum posts) uses a bare ... for omitted fields.
+        i += 3
+        warnings.add('Some fields were trimmed by hand ("..."); findings only use what was pasted.')
+        ws()
+        if (src[i] === ',') i++
+        continue
+      }
       let key: string
       const c = src[i]
       if (c === '"' || c === "'" || c === '`') key = str()
@@ -154,8 +162,10 @@ export function parseLenient(src: string): Parsed {
       if (src[i] === ']') { i++; break }
       if (src.startsWith('...', i)) {
         // mongosh: "... 120 more items"
-        while (i < src.length && src[i] !== ']' && src[i] !== '\n') i++
-        warnings.add('Some arrays were cut short by the shell ("... N more items"); counts may be incomplete.')
+        const more = /^\.\.\.\s*\d+ more items?/.test(src.slice(i, i + 40))
+        while (i < src.length && src[i] !== ']' && src[i] !== '\n' && src[i] !== ',') i++
+        if (src[i] === ',') i++
+        warnings.add(more ? 'Some arrays were cut short by the shell ("... N more items"); counts may be incomplete.' : 'Some fields were trimmed by hand ("..."); findings only use what was pasted.')
         continue
       }
       if (/^<\d+ empty items?>/.test(src.slice(i, i + 20))) { i = src.indexOf('>', i) + 1; out.push(null) }
@@ -203,7 +213,20 @@ export function parseLenient(src: string): Parsed {
     const c = src[i]
     if (c === '{') return object()
     if (c === '[') return array()
-    if (c === '"' || c === "'" || c === '`') return str()
+    if (c === '"' || c === "'" || c === '`') {
+      // mongosh wraps long strings (e.g. slotBasedPlan.stages) as 'line 1\n' +\n 'line 2'
+      let out = str()
+      for (;;) {
+        const save = i
+        ws()
+        if (src[i] !== '+') { i = save; return out }
+        i++
+        ws()
+        const q = src[i]
+        if (q !== '"' && q !== "'" && q !== '`') fail(`Expected a string after "+", found ${near()}`)
+        out += str()
+      }
+    }
     if (c === '/') return regex()
     if (c === '-' || c === '+') {
       if (src.startsWith('Infinity', i + 1)) { i += 9; return c === '-' ? -Infinity : Infinity }

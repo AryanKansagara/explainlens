@@ -286,6 +286,7 @@ code, pre, textarea, .mono {
   font-weight: 500;
 }
 .stat .value {
+  overflow-wrap: anywhere;
   font-size: 28px;
   font-weight: 400;
   letter-spacing: 0;
@@ -515,6 +516,7 @@ section { margin: 20px 0; }
 }
 .code .copy { position: absolute; top: 8px; right: 8px; }
 .code pre { margin: 0; white-space: pre-wrap; }
+.code:has(.copy) pre { padding-right: 72px; }
 .snippet { font-size: 12px; word-break: break-all; }
 .advice { padding-left: 18px; }
 .advice li { margin: 6px 0; }

@@ -443,7 +443,7 @@ function bigIns(filter: unknown, out: [string, number][] = [], field = ''): [str
 function findings(a: Analysis, root: Obj, shape: ReturnType<typeof queryShape>, warnings: string[]): Finding[] {
   const f: Finding[] = []
   const add = (sev: Severity, title: string, detail: string, doc?: string, fix?: string) => f.push({ sev, title, detail, doc, fix })
-  for (const w of warnings) add('warn', 'Shell output was truncated', w, LINKS.shell)
+  for (const w of warnings) /by hand/.test(w) ? add('info', 'Output was trimmed', w, LINKS.explain) : add('warn', 'Shell output was truncated', w, LINKS.shell)
   if (a.verbosity === 'queryPlanner') add('info', 'No execution statistics', 'This explain ran in queryPlanner mode, so it only shows the chosen plan. Re-run with .explain("executionStats") (or "allPlansExecution" to see how candidates performed) to get documents examined, keys examined and timings.', LINKS.explain)
 
   for (const p of a.parts) {
