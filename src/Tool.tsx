@@ -107,7 +107,7 @@ export default function Tool() {
         />
 
         <div style={{ marginTop: 12 }}>
-          <div className="muted" style={{ fontSize: 12.5, marginBottom: 6 }}>Or try a sample</div>
+          <div className="muted" style={{ fontSize: 12.5, marginBottom: 6 }}>Or try a synthetic sample</div>
           <div className="row">
             {SAMPLES.map((s) => (
               <button key={s.id} type="button" className="btn ghost sm" onClick={() => setPaste(s.text)}>{s.label}</button>

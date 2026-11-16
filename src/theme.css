@@ -476,7 +476,8 @@ section { margin: 20px 0; }
   border-radius: var(--md-sys-shape-corner-small);
 }
 .tree .node:hover { background: var(--md-sys-color-surface-container); }
-.tree .node.hot { background: var(--md-sys-color-error-container); }
+.tree .node.hot { background: var(--md-sys-color-error-container); color: var(--md-sys-color-on-error-container); }
+.tree .node.hot .muted, .tree .node.hot .stage { color: inherit; opacity: 1; }
 .tree .stage {
   font-weight: 500;
   font-family: 'Roboto Mono', monospace;
