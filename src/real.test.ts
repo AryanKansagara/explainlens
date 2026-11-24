@@ -142,7 +142,8 @@ test('docs COLLSCAN excerpt: 21,349 examined for 3,809 returned', () => {
   assert.equal(a.nReturned, 3809)
   assert.equal(a.verbosity, 'executionStats')
   assert.ok(Math.abs(a.ratio! - 21349 / 3809) < 1e-9)
-  assert.equal(a.health, 'warn')
+  // The 6:1 ratio alone would grade this 'warn', but the Collection scan finding is 'bad' and Health may not be better than that.
+  assert.equal(a.health, 'bad')
   assert.ok(a.findings.some((f) => f.sev === 'bad' && f.title === 'Collection scan'))
 })
 

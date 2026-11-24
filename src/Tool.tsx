@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useState, type DragEvent, type ReactNode } from 'react'
 import { Shell } from './Shell.tsx'
 import { BackToHome } from './router.tsx'
-import { analyze, type Analysis, type Finding, type PlanNode, type PlanRow, type PipeStage, type QueryPart, type Severity } from './analyze.ts'
+import { analyze, ratioHealth, type Analysis, type Finding, type PlanNode, type PlanRow, type PipeStage, type QueryPart, type Severity } from './analyze.ts'
 import { fmt, parseLenient, show, ParseError } from './parse.ts'
 import { SAMPLES } from './samples.ts'
 import { encode, decode } from './share.ts'
@@ -167,7 +167,7 @@ function Stats({ a }: { a: Analysis }) {
           {a.aggregation && <span className="badge info">aggregation</span>}
           {a.sharded && <span className="badge info">sharded</span>}
           {a.version && <span className="badge info">v{a.version}</span>}
-          {a.ratio !== undefined && <span className={`badge ${a.health}`}>{fmt(Math.round(a.ratio))} docs examined per doc returned</span>}
+          {a.ratio !== undefined && <span className={`badge ${ratioHealth(a.ratio)}`}>{fmt(Math.round(a.ratio))} docs examined per doc returned</span>}
         </h2>
       </div>
       <div className="stats">

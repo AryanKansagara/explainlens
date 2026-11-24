@@ -424,6 +424,10 @@ export function suggestIndex(filter: Obj | undefined, sort: Obj | undefined, pro
 
 const ratioSev = (r: number): Severity | null => (r >= 100 ? 'bad' : r >= 10 ? 'warn' : null)
 const SEV_ORDER: Record<Severity, number> = { bad: 0, warn: 1, info: 2, good: 3 }
+const worst = (...sevs: Severity[]) => sevs.reduce((a, b) => (SEV_ORDER[b] < SEV_ORDER[a] ? b : a))
+
+/** Grade of docs examined per document returned: unknown (info), up to 2 good, up to 10 warn, above that bad. */
+export const ratioHealth = (ratio: number | undefined): Severity => (ratio === undefined ? 'info' : ratio <= 2 ? 'good' : ratio <= 10 ? 'warn' : 'bad')
 
 function fieldsOf(filter: unknown, out = new Set<string>()): Set<string> {
   if (Array.isArray(filter)) filter.forEach((f) => fieldsOf(f, out))
@@ -541,7 +545,7 @@ function findings(a: Analysis, root: Obj, shape: ReturnType<typeof queryShape>, 
       } else if (used.length) add('good', `${target} uses ${used.join(', ')}${where}`, `${fmt(num(d.totalKeysExamined))} keys and ${fmt(num(d.totalDocsExamined))} documents examined on the inner side.`, LINKS.lookup)
     }
     if (st.name === '$sort' && disk) add('bad', `$sort spilled to disk${where}`, `The pipeline sort exceeded 100 MB and wrote ${bytes(d.spilledDataStorageSize ?? d.spilledBytes)} to disk across ${fmt(num(d.spills))} spills. Sort earlier with an index or reduce documents first.`, LINKS.aggSort)
-    else if (st.name === '$sort') add('info', `In-memory $sort of ${fmt(st.nReturned)} documents${where}`, `This $sort runs in the aggregation layer, not from an index${d.totalDataSizeSortedBytesEstimate ? ` (${bytes(d.totalDataSizeSortedBytesEstimate)})` : ''}. That is expected after $group; before $group it means no index provided the order.`, LINKS.aggSort)
+    else if (st.name === '$sort') add('info', `In-memory $sort${st.nReturned === undefined ? '' : ` of ${fmt(st.nReturned)} documents`}${where}`, `This $sort runs in the aggregation layer, not from an index${d.totalDataSizeSortedBytesEstimate ? ` (${bytes(d.totalDataSizeSortedBytesEstimate)})` : ''}. That is expected after $group; before $group it means no index provided the order.`, LINKS.aggSort)
     if (st.name === '$group' && disk) add('warn', `$group spilled to disk${where}`, `$group exceeded its memory limit and spilled ${fmt(num(d.spills))} times (${bytes(d.spilledDataStorageSize ?? d.spilledBytes)} on disk).`, LINKS.group)
   }
   const shardNames = isObj(root.shards) && !Array.isArray(root.shards) ? Object.keys(root.shards) : []
@@ -590,7 +594,7 @@ export function analyze(root: unknown, warnings: string[] = []): Analysis {
   const times = [...parts.map((p) => p.ms), last?.ms].filter((t): t is number => t !== undefined)
   const ms = num(top?.executionTimeMillis) ?? (times.length ? Math.max(...times) : undefined)
   const ratio = qDocs !== undefined && qRet !== undefined ? qDocs / Math.max(qRet, 1) : undefined
-  const health: Severity = ratio === undefined ? 'info' : ratio <= 2 ? 'good' : ratio <= 10 ? 'warn' : 'bad'
+  const health = ratioHealth(ratio)
   let current: Obj | undefined
   walk(parts[0]?.tree ?? null, (n) => { if (!current && /IXSCAN$/.test(n.stage) && isObj(n.d.keyPattern)) current = n.d.keyPattern })
   const engines = [...new Set(parts.map((p) => p.engine))]
@@ -606,5 +610,7 @@ export function analyze(root: unknown, warnings: string[] = []): Analysis {
     index: suggestIndex(shape.filter, shape.sort, shape.projection, shape.coll, current),
   }
   a.findings = findings(a, root, shape, warnings)
+  // The badge is the docs-examined ratio at first; it must never be better than the worst finding listed under it.
+  a.health = worst(a.health, ...a.findings.map((x) => x.sev).filter((v) => v === 'bad' || v === 'warn'))
   return a
 }

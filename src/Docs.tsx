@@ -19,7 +19,7 @@ export default function Docs() {
       <section className="panel">
         <h2>How the numbers are worked out</h2>
         <ul className="advice">
-          <li><strong>Docs examined per doc returned</strong> = <code>totalDocsExamined / max(nReturned, 1)</code>. Up to 2 is healthy, up to 10 needs attention, above that is expensive. The ideal is 1:1, as in the MongoDB tutorial on analyzing query performance.</li>
+          <li><strong>Docs examined per doc returned</strong> = <code>totalDocsExamined / max(nReturned, 1)</code>. Up to 2 is healthy, up to 10 needs attention, above that is expensive. The ideal is 1:1, as in the MongoDB tutorial on analyzing query performance. The Health badge is never better than the worst finding: a warn finding caps it at needs attention and a bad finding at expensive.</li>
           <li><strong>Heat</strong> on the plan tree uses each stage's own time (its <code>executionTimeMillisEstimate</code> minus its children's); without timings it falls back to documents + keys examined.</li>
           <li><strong>Index advice</strong> follows the Equality, Sort, Range guideline. <code>$in</code> counts as equality; ranges after the first only filter keys. With a small inclusion projection that excludes <code>_id</code>, the projected fields are appended so the query can be covered.</li>
           <li>SBE stats are matched to plan stages by <code>planNodeId</code>; scan reads become documents examined.</li>
