@@ -551,7 +551,14 @@ function findings(a: Analysis, root: Obj, shape: ReturnType<typeof queryShape>, 
   const shardNames = isObj(root.shards) && !Array.isArray(root.shards) ? Object.keys(root.shards) : []
   if (shardNames.length > 1) add('warn', `Aggregation ran on ${shardNames.length} shards`, `The shards part of the pipeline ran on ${shardNames.join(', ')} and was merged${root.mergeType ? ` on ${root.mergeType}` : ''}. Start the pipeline with a $match on the shard key to target fewer shards.`, LINKS.sharding)
 
-  if (!f.some((x) => x.sev === 'bad' || x.sev === 'warn')) add('good', 'No obvious problems', 'The plan uses indexes and examines roughly what it returns.', LINKS.analyze)
+  // A verdict needs evidence. Without a plan or numbers there is nothing to judge, and without measured execution
+  // (a.health is the docs-examined-per-returned grade, so it is only 'good' when both counts were reported) the
+  // claim "examines roughly what it returns" has nothing behind it.
+  const hasPlan = a.pipeline.some((s) => s.name.startsWith('$')) || a.parts.some((p) => { let ok = false; walk(p.tree, (n) => { if (typeof n.d.stage === 'string' && n.d.stage) ok = true }); return ok })
+  const hasNumbers = [a.nReturned, a.docs, a.keys].some((x) => x !== undefined) || a.parts.some((p) => p.ms !== undefined) || a.pipeline.some((s) => s.ms !== undefined)
+  if (!hasPlan && !hasNumbers) add('warn', 'Nothing to analyse', 'This looks like explain() output, but it holds no usable query plan (a winningPlan with a stage), no aggregation stages and no execution statistics, so there is nothing to judge. Check that the whole result of .explain() was pasted.', LINKS.explain)
+  else if (a.ratio !== undefined && (a.health === 'warn' || a.health === 'bad') && !f.some((x) => x.sev === 'bad' || x.sev === 'warn')) add('warn', 'More documents examined than returned', `About ${fmt(Math.round(a.ratio))} documents were examined for each one returned; 1:1 is ideal. A more selective index would reduce the reads.`, LINKS.analyze)
+  else if (hasPlan && a.health === 'good' && !f.some((x) => x.sev === 'bad' || x.sev === 'warn')) add('good', 'No obvious problems', 'The plan uses indexes and examines roughly what it returns.', LINKS.analyze)
   return f.sort((x, y) => SEV_ORDER[x.sev] - SEV_ORDER[y.sev])
 }
 
@@ -583,7 +590,9 @@ export function analyze(root: unknown, warnings: string[] = []): Analysis {
   const nReturned = last?.nReturned ?? num(top?.nReturned) ?? qRet
   const docs = sum([qDocs, ...lookups.map((s) => num(s.d.totalDocsExamined))])
   const keys = sum([qKeys, ...lookups.map((s) => num(s.d.totalKeysExamined))])
-  const ms = num(top?.executionTimeMillis) ?? (parts.length || last ? Math.max(...parts.map((p) => p.ms ?? 0), last?.ms ?? 0) : undefined)
+  // Only times that were actually reported count: a missing time is unknown, not 0, and a reported 0 stays 0.
+  const times = [...parts.map((p) => p.ms), last?.ms].filter((t): t is number => t !== undefined)
+  const ms = num(top?.executionTimeMillis) ?? (times.length ? Math.max(...times) : undefined)
   const ratio = qDocs !== undefined && qRet !== undefined ? qDocs / Math.max(qRet, 1) : undefined
   const health = ratioHealth(ratio)
   let current: Obj | undefined

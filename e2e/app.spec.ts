@@ -176,20 +176,27 @@ test.describe('explain output from the MongoDB manual', () => {
     await expect(panel(page, 'Index advice')).toContainText('Matches current')
   })
 
-  // https://github.com/AryanKansagara/explainlens/issues/2 : an app bug, reported and not fixed here. test.fail() makes
-  // CI fail loudly once the bug is fixed, so this can be turned into a plain test.
-  test('queryPlanner only: Time is not shown as 0 ms (known bug #2)', async ({ page }) => {
-    test.fail(true, 'issue #2: Time shows "0 ms" without executionStats')
+  // https://github.com/AryanKansagara/explainlens/issues/2
+  test('queryPlanner only: Time is not shown as 0 ms', async ({ page }) => {
     await paste(page, fixture('aggregation-explain.txt'))
     await expect(stat(page, 'Time')).toHaveText('—')
   })
 
+  test('hand-trimmed executionStats without a time: Time is "—", the numbers that are there stay', async ({ page }) => {
+    await paste(page, "{ queryPlanner: { namespace: 'a.b', winningPlan: { stage: 'COLLSCAN' } }, executionStats: { nReturned: 3, executionTimeMillis: '...', totalKeysExamined: 0, totalDocsExamined: 9 } }")
+    await expect(stat(page, 'Docs examined')).toHaveText('9')
+    await expect(stat(page, 'Time')).toHaveText('—')
+  })
+
   // https://github.com/AryanKansagara/explainlens/issues/3
-  test('queryPlanner only: no "No obvious problems" verdict without statistics (known bug #3)', async ({ page }) => {
-    test.fail(true, 'issue #3: "No obvious problems" is shown for explains without stats or plans')
+  test('queryPlanner only: no "No obvious problems" verdict without statistics', async ({ page }) => {
     await paste(page, fixture('aggregation-explain.txt'))
     await expect(stat(page, 'Verbosity')).toHaveText('queryPlanner')
-    expect(await findingTitles(page).allInnerTexts()).not.toContain('No obvious problems')
+    const titles = await findingTitles(page).allInnerTexts()
+    expect(titles).toContain('No execution statistics')
+    expect(titles).not.toContain('No obvious problems')
+    // Nothing was measured, so no finding is green.
+    await expect(panel(page, 'Findings').locator('.finding.good')).toHaveCount(0)
   })
 })
 
@@ -295,11 +302,16 @@ test.describe('input that is not a usable explain', () => {
   })
 
   // https://github.com/AryanKansagara/explainlens/issues/3 : a document with a recognised key but nothing inside it.
-  test('an explain skeleton with no plan gets no "No obvious problems" verdict (known bug #3)', async ({ page }) => {
-    test.fail(true, 'issue #3: "No obvious problems" is shown for empty explains')
-    await paste(page, '{"queryPlanner":{}}')
-    await expect(page.getByText('No obvious problems')).toHaveCount(0)
-  })
+  for (const text of ['{"queryPlanner":{}}', '{"stages":[]}', '{"shards":{}}', '{"queryPlanner":{"winningPlan":{"stage":5}}}']) {
+    test(`an explain skeleton with no plan gets "Nothing to analyse", not a verdict: ${text}`, async ({ page }) => {
+      await paste(page, text)
+      await expect(findingTitles(page)).toContainText(['Nothing to analyse'])
+      await expect(panel(page, 'Findings').locator('.finding.warn')).toContainText('nothing to judge')
+      await expect(page.getByText('No obvious problems')).toHaveCount(0)
+      await expect(panel(page, 'Findings').locator('.finding.good')).toHaveCount(0)
+      await expect(stat(page, 'Health')).not.toHaveText('Healthy')
+    })
+  }
 })
 
 test.describe('sharing and persistence', () => {
