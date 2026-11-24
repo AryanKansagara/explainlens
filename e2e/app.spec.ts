@@ -149,11 +149,15 @@ test.describe('explain output from the MongoDB manual', () => {
     await expect(panel(page, 'Index advice')).toContainText('Matches current')
   })
 
-  // https://github.com/AryanKansagara/explainlens/issues/2 : an app bug, reported and not fixed here. test.fail() makes
-  // CI fail loudly once the bug is fixed, so this can be turned into a plain test.
-  test('queryPlanner only: Time is not shown as 0 ms (known bug #2)', async ({ page }) => {
-    test.fail(true, 'issue #2: Time shows "0 ms" without executionStats')
+  // https://github.com/AryanKansagara/explainlens/issues/2
+  test('queryPlanner only: Time is not shown as 0 ms', async ({ page }) => {
     await paste(page, fixture('aggregation-explain.txt'))
+    await expect(stat(page, 'Time')).toHaveText('—')
+  })
+
+  test('hand-trimmed executionStats without a time: Time is "—", the numbers that are there stay', async ({ page }) => {
+    await paste(page, "{ queryPlanner: { namespace: 'a.b', winningPlan: { stage: 'COLLSCAN' } }, executionStats: { nReturned: 3, executionTimeMillis: '...', totalKeysExamined: 0, totalDocsExamined: 9 } }")
+    await expect(stat(page, 'Docs examined')).toHaveText('9')
     await expect(stat(page, 'Time')).toHaveText('—')
   })
 
