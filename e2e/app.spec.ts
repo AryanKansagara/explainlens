@@ -21,7 +21,7 @@ const SAMPLE_CASES = [
   { label: 'COLLSCAN + sort', stages: ['SORT', 'COLLSCAN'], findings: ['Collection scan', 'Blocking in-memory SORT'], advice: 'db.orders.createIndex({ status: 1, region: 1, createdAt: -1 })', health: 'Expensive' },
   { label: 'Wrong ESR order', stages: ['SORT', 'FETCH', 'IXSCAN'], findings: ['Keys examined ≫ returned', 'Documents examined ≫ returned', 'Blocking in-memory SORT'], advice: 'db.orders.createIndex({ status: 1, total: -1, orderDate: 1 })', health: 'Expensive' },
   { label: 'Covered query', stages: ['PROJECTION_COVERED', 'IXSCAN'], findings: ['Covered query', 'No obvious problems'], advice: 'db.inventory.createIndex({ sku: 1, qty: 1 })', health: 'Healthy' },
-  { label: 'Aggregation + $lookup', stages: ['PROJECTION_SIMPLE', 'FETCH', 'IXSCAN'], findings: ['$lookup from "customers" on customerId scans the foreign collection', 'In-memory $sort of 31 documents'], advice: 'db.orders.createIndex({ status: 1, createdAt: 1 })', pipeline: 4 },
+  { label: 'Aggregation + $lookup', stages: ['PROJECTION_SIMPLE', 'FETCH', 'IXSCAN'], findings: ['$lookup from "customers" on customerId scans the foreign collection', 'In-memory $sort of 31 documents'], advice: 'db.orders.createIndex({ status: 1, createdAt: 1 })', health: 'Expensive', pipeline: 4 },
   { label: '8.3 SBE + cost estimates', stages: ['GROUP', 'FETCH', 'IXSCAN'], findings: ['Cardinality misestimate (20.7×)', 'Index doesn\'t cover the whole predicate'], advice: "db.shipments.createIndex({ status: 1, 'dest.country': 1 })", health: 'Expensive' },
   { label: 'mongosh paste', stages: ['SORT', 'FETCH', 'IXSCAN'], findings: ['Keys examined ≫ returned', 'Blocking in-memory SORT'], advice: 'db.orders.createIndex({ status: 1, total: -1, orderDate: 1 })', health: 'Expensive' },
 ]
@@ -56,6 +56,32 @@ for (const c of SAMPLE_CASES) {
   })
 }
 
+test('Health is never better than the worst finding, in any sample', async ({ page }) => {
+  await page.goto('/app')
+  for (const c of SAMPLE_CASES) {
+    await page.getByRole('button', { name: c.label, exact: true }).click()
+    await expect(stat(page, 'Verbosity')).toBeVisible()
+    const sev = await panel(page, 'Findings').locator('.finding > .row > .badge').allInnerTexts()
+    const health = await stat(page, 'Health').innerText()
+    if (sev.includes('bad')) expect(health, c.label).toBe('Expensive')
+    else if (sev.includes('warn')) expect(health, c.label).toMatch(/^(Needs attention|Expensive)$/)
+  }
+})
+
+test('the ratio badge keeps its own colour when a finding makes Health worse', async ({ page }) => {
+  await page.goto('/app')
+  await page.getByRole('button', { name: 'Aggregation + $lookup', exact: true }).click()
+  await expect(stat(page, 'Health').locator('.badge')).toHaveClass(/\bbad\b/)
+  await expect(page.locator('h2', { hasText: 'Overview' }).locator('.badge', { hasText: 'docs examined per doc returned' })).toHaveClass(/\bgood\b/)
+})
+
+test('queryPlanner-only aggregation: the $sort finding does not claim a document count', async ({ page }) => {
+  await paste(page, fixture('aggregation-explain.txt'))
+  const titles = await findingTitles(page).allInnerTexts()
+  expect(titles).toContain('In-memory $sort')
+  expect(titles.filter((t) => t.includes('—'))).toEqual([])
+})
+
 test('plan tree nodes can be collapsed and expanded', async ({ page }) => {
   await page.goto('/app')
   await page.getByRole('button', { name: 'COLLSCAN + sort', exact: true }).click()
@@ -82,7 +108,8 @@ test.describe('explain output from the MongoDB manual', () => {
     await expect(stat(page, 'nReturned')).toHaveText('3,809')
     await expect(stat(page, 'Docs examined')).toHaveText('21,349')
     await expect(stat(page, 'Keys examined')).toHaveText('0')
-    await expect(stat(page, 'Health')).toHaveText('Needs attention')
+    // The 6:1 ratio alone would be "Needs attention", but the Collection scan finding is bad and Health may not be better.
+    await expect(stat(page, 'Health')).toHaveText('Expensive')
     await expect(page.getByText('6 docs examined per doc returned')).toBeVisible()
     await expect(stages(page)).toHaveText(['COLLSCAN'])
     await expect(findingTitles(page)).toHaveText(['Collection scan'])
