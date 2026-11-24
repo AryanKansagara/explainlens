@@ -192,3 +192,13 @@ test('canonical Extended JSON (Compass raw output / EJSON.stringify) numbers nor
   assert.equal(a.docs, 235)
   assert.equal(a.health, 'good')
 })
+
+test('a ratio that lowers health is always explained by a finding', () => {
+  const plan = (docs: number, ret: number) => analyze({ queryPlanner: { namespace: 'a.b', winningPlan: { stage: 'FETCH', inputStage: { stage: 'IXSCAN', keyPattern: { a: 1 }, indexName: 'a_1' } } }, executionStats: { nReturned: ret, totalDocsExamined: docs, totalKeysExamined: ret, executionTimeMillis: 1 } })
+  for (const [docs, ret] of [[50, 10], [30, 10], [100, 10], [50, 1], [90, 1]]) {
+    const a = plan(docs, ret)
+    assert.notEqual(a.health, 'good')
+    assert.ok(a.findings.some((f) => f.sev === 'warn' || f.sev === 'bad'), `${docs}/${ret}`)
+  }
+  assert.ok(plan(10, 10).findings.every((f) => f.sev !== 'warn' && f.sev !== 'bad'))
+})
