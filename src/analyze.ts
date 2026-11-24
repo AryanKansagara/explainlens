@@ -586,7 +586,9 @@ export function analyze(root: unknown, warnings: string[] = []): Analysis {
   const nReturned = last?.nReturned ?? num(top?.nReturned) ?? qRet
   const docs = sum([qDocs, ...lookups.map((s) => num(s.d.totalDocsExamined))])
   const keys = sum([qKeys, ...lookups.map((s) => num(s.d.totalKeysExamined))])
-  const ms = num(top?.executionTimeMillis) ?? (parts.length || last ? Math.max(...parts.map((p) => p.ms ?? 0), last?.ms ?? 0) : undefined)
+  // Only times that were actually reported count: a missing time is unknown, not 0, and a reported 0 stays 0.
+  const times = [...parts.map((p) => p.ms), last?.ms].filter((t): t is number => t !== undefined)
+  const ms = num(top?.executionTimeMillis) ?? (times.length ? Math.max(...times) : undefined)
   const ratio = qDocs !== undefined && qRet !== undefined ? qDocs / Math.max(qRet, 1) : undefined
   const health: Severity = ratio === undefined ? 'info' : ratio <= 2 ? 'good' : ratio <= 10 ? 'warn' : 'bad'
   let current: Obj | undefined
