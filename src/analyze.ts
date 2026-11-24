@@ -553,6 +553,7 @@ function findings(a: Analysis, root: Obj, shape: ReturnType<typeof queryShape>, 
   const hasPlan = a.pipeline.some((s) => s.name.startsWith('$')) || a.parts.some((p) => { let ok = false; walk(p.tree, (n) => { if (typeof n.d.stage === 'string' && n.d.stage) ok = true }); return ok })
   const hasNumbers = [a.nReturned, a.docs, a.keys].some((x) => x !== undefined) || a.parts.some((p) => p.ms !== undefined) || a.pipeline.some((s) => s.ms !== undefined)
   if (!hasPlan && !hasNumbers) add('warn', 'Nothing to analyse', 'This looks like explain() output, but it holds no usable query plan (a winningPlan with a stage), no aggregation stages and no execution statistics, so there is nothing to judge. Check that the whole result of .explain() was pasted.', LINKS.explain)
+  else if (a.ratio !== undefined && (a.health === 'warn' || a.health === 'bad') && !f.some((x) => x.sev === 'bad' || x.sev === 'warn')) add('warn', 'More documents examined than returned', `About ${fmt(Math.round(a.ratio))} documents were examined for each one returned; 1:1 is ideal. A more selective index would reduce the reads.`, LINKS.analyze)
   else if (hasPlan && a.health === 'good' && !f.some((x) => x.sev === 'bad' || x.sev === 'warn')) add('good', 'No obvious problems', 'The plan uses indexes and examines roughly what it returns.', LINKS.analyze)
   return f.sort((x, y) => SEV_ORDER[x.sev] - SEV_ORDER[y.sev])
 }
